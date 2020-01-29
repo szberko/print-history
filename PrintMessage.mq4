@@ -7,6 +7,7 @@
 #property link      "https://www.mql5.com"
 #property version   "1.00"
 #property strict
+
 //+------------------------------------------------------------------+
 //| Script program start function                                    |
 //+------------------------------------------------------------------+
@@ -19,7 +20,7 @@ void OnStart() {
   datetime orderCloseTimes[];
   double lows[];
   double highs[];
-  int orderTypes[];
+  string orderTypes[];
 
   ArrayResize(ticketNos, hstTotal);
   ArrayResize(orderSymbols, hstTotal);
@@ -41,7 +42,7 @@ void OnStart() {
     orderCloseTimes[i] = OrderCloseTime();
     lows[i] = calcLow(OrderOpenTime(), OrderCloseTime());
     highs[i] = calcHigh(OrderOpenTime(), OrderCloseTime());
-    orderTypes[i] = OrderType();
+    orderTypes[i] = getOrderTypeFrom(OrderType());
   }
 
   writeToCSVFileArray(hstTotal, ticketNos, orderSymbols, orderOpenTimes, orderCloseTimes, lows, highs, orderTypes);
@@ -54,7 +55,7 @@ int writeToCSVFileArray(int totalNoOfOrders,
                     datetime &orderCloseTimes[],
                     double &lows[],
                     double &highs[],
-                    int &orderTypes[]) {
+                    string &orderTypes[]) {
   int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
   if (handle != INVALID_HANDLE){
     Print("write to file");
@@ -114,3 +115,27 @@ double calcHigh(datetime start, datetime end) {
 }
 //+------------------------------------------------------------------+
 
+string getOrderTypeFrom(int orderType) {
+  switch(orderType) {
+    case(0):
+      return "BUY";
+      break;
+    case(1):
+      return "SELL";
+      break;
+    case(2):
+      return "BUY_LIMIT";
+      break;
+    case(3):
+      return "SELL_LIMIT";
+      break;
+    case(4):
+      return "BUY_STOP";
+      break;
+    case(5):
+      return "SELL_STOP";
+      break;
+    default:
+      return "";
+  }
+}
