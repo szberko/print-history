@@ -18,36 +18,29 @@ struct OrderPeriod {
    int orderPeriodNegativeInSeconds;
 };
 
+class Trade {
+  public:
+    int       ticketNo;
+    string    orderSymbol;
+    datetime  orderOpenTime;
+    datetime  orderCloseTime;
+    double    low;
+    double    high;
+    string    orderType;
+    double    orderOpenPrice;
+    double    orderStopLosse;
+    double    orderTakeProfit;
+    double    orderClosePrice;
+    double    orderLot;
+    OrderPeriod       orderPeriod;
+};
+
 void OnStart() {
-  int i,hstTotal=OrdersHistoryTotal();
+  int i,hstTotal = OrdersHistoryTotal();
 
-  int ticketNos[];
-  string orderSymbols[];
-  datetime orderOpenTimes[];
-  datetime orderCloseTimes[];
-  double lows[];
-  double highs[];
-  string orderTypes[];
-  double orderOpenPrices[];
-  double orderStopLosses[];
-  double orderTakeProfits[];
-  double orderClosePrices[];
-  double orderLots[];
-  OrderPeriod orderPeriods[];
+  Trade trades[];
 
-  ArrayResize(ticketNos, hstTotal);
-  ArrayResize(orderSymbols, hstTotal);
-  ArrayResize(orderOpenTimes, hstTotal);
-  ArrayResize(orderCloseTimes, hstTotal);
-  ArrayResize(lows, hstTotal);
-  ArrayResize(highs, hstTotal);
-  ArrayResize(orderTypes, hstTotal);
-  ArrayResize(orderOpenPrices, hstTotal);
-  ArrayResize(orderStopLosses, hstTotal);
-  ArrayResize(orderTakeProfits, hstTotal);
-  ArrayResize(orderClosePrices, hstTotal);
-  ArrayResize(orderLots, hstTotal);
-  ArrayResize(orderPeriods, hstTotal);
+  ArrayResize(trades, hstTotal);
   
   for(i=0; i < hstTotal; i++) {
     if(OrderSelect(i, SELECT_BY_POS, MODE_HISTORY) == false) {
@@ -55,35 +48,23 @@ void OnStart() {
       break;
     }
     
-    ticketNos[i] = OrderTicket();
-    orderSymbols[i] = OrderSymbol();
-    orderOpenTimes[i] = OrderOpenTime();
-    orderCloseTimes[i] = OrderCloseTime();
-    lows[i] = calcLow(OrderOpenTime(), OrderCloseTime());
-    highs[i] = calcHigh(OrderOpenTime(), OrderCloseTime());
-    orderTypes[i] = getOrderTypeFrom(OrderType());
-    orderOpenPrices[i] = OrderOpenPrice();
-    orderStopLosses[i] = OrderStopLoss();
-    orderTakeProfits[i] = OrderTakeProfit();
-    orderClosePrices[i] = OrderClosePrice();
-    orderLots[i] = OrderLots();
-    orderPeriods[i] = calcPeriod(orderOpenTimes[i], orderCloseTimes[i], orderOpenPrices[i]);
+    
+    trades[i].ticketNo = OrderTicket();
+    trades[i].orderSymbol = OrderSymbol();
+    trades[i].orderOpenTime = OrderOpenTime();
+    trades[i].orderCloseTime = OrderCloseTime();
+    trades[i].low = calcLow(OrderOpenTime(), OrderCloseTime());
+    trades[i].high = calcHigh(OrderOpenTime(), OrderCloseTime());
+    trades[i].orderType = getOrderTypeFrom(OrderType());
+    trades[i].orderOpenPrice = OrderOpenPrice();
+    trades[i].orderStopLosse = OrderStopLoss();
+    trades[i].orderTakeProfit = OrderTakeProfit();
+    trades[i].orderClosePrice = OrderClosePrice();
+    trades[i].orderLot = OrderLots();
+    trades[i].orderPeriod = calcPeriod(trades[i].orderOpenTime, trades[i].orderCloseTime, trades[i].orderOpenPrice);
   }
 
-  writeToCSVFileArray(hstTotal, 
-                      ticketNos, 
-                      orderSymbols, 
-                      orderOpenTimes, 
-                      orderCloseTimes, 
-                      lows, 
-                      highs, 
-                      orderTypes,
-                      orderOpenPrices,
-                      orderStopLosses,
-                      orderTakeProfits,
-                      orderClosePrices,
-                      orderLots,
-                      orderPeriods);
+  writeToCSVFileArray(hstTotal, trades);
 }
 
 double calcR(double orderOpenPrice, double orderClosePrice){
@@ -143,20 +124,7 @@ int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
   return counter;
 }
 
-int writeToCSVFileArray(int totalNoOfOrders,
-                    int &ticketNos[],
-                    string &orderSymbols[],
-                    datetime &orderOpenTimes[],
-                    datetime &orderCloseTimes[],
-                    double &lows[],
-                    double &highs[],
-                    string &orderTypes[],
-                    double &orderOpenPrices[],
-                    double &orderStopLosses[],
-                    double &orderTakeProfits[],
-                    double &orderClosePrices[],
-                    double &orderLots[],
-                    OrderPeriod &orderPeriods[]) {
+int writeToCSVFileArray(int totalNoOfOrders, Trade &trades[]) {
   int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
   if (handle != INVALID_HANDLE){
     Print("write to file");
@@ -179,21 +147,21 @@ int writeToCSVFileArray(int totalNoOfOrders,
 
     for(int i=0; i < totalNoOfOrders; i++) {
       FileWrite(handle, 
-                ticketNos[i], 
-                orderSymbols[i], 
-                orderOpenTimes[i], 
-                orderCloseTimes[i], 
-                lows[i], 
-                highs[i], 
-                orderTypes[i],
-                orderOpenPrices[i],
-                orderStopLosses[i],
-                orderTakeProfits[i],
-                orderClosePrices[i],
-                orderLots[i],
-                orderPeriods[i].orderPeriodInSeconds,
-                orderPeriods[i].orderPeriodPositiveInSeconds,
-                orderPeriods[i].orderPeriodNegativeInSeconds
+                trades[i].ticketNo, 
+                trades[i].orderSymbol, 
+                trades[i].orderOpenTime, 
+                trades[i].orderCloseTime, 
+                trades[i].low, 
+                trades[i].high, 
+                trades[i].orderType,
+                trades[i].orderOpenPrice,
+                trades[i].orderStopLosse,
+                trades[i].orderTakeProfit,
+                trades[i].orderClosePrice,
+                trades[i].orderLot,
+                trades[i].orderPeriod.orderPeriodInSeconds,
+                trades[i].orderPeriod.orderPeriodPositiveInSeconds,
+                trades[i].orderPeriod.orderPeriodNegativeInSeconds
                 );
     }
   
