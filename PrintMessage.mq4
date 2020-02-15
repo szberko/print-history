@@ -11,6 +11,13 @@
 //+------------------------------------------------------------------+
 //| Script program start function                                    |
 //+------------------------------------------------------------------+
+
+struct OrderPeriod {
+   int orderPeriodInSeconds;
+   int orderPeriodPositiveInSeconds;
+   int orderPeriodNegativeInSeconds;
+};
+
 void OnStart() {
   int i,hstTotal=OrdersHistoryTotal();
 
@@ -26,9 +33,7 @@ void OnStart() {
   double orderTakeProfits[];
   double orderClosePrices[];
   double orderLots[];
-  int orderPeriodInSeconds[];
-  int orderPeriodPositiveInSeconds[];
-  int orderPeriodNegativeInSeconds[];
+  OrderPeriod orderPeriods[];
 
   ArrayResize(ticketNos, hstTotal);
   ArrayResize(orderSymbols, hstTotal);
@@ -42,9 +47,7 @@ void OnStart() {
   ArrayResize(orderTakeProfits, hstTotal);
   ArrayResize(orderClosePrices, hstTotal);
   ArrayResize(orderLots, hstTotal);
-  ArrayResize(orderPeriodInSeconds, hstTotal);
-  ArrayResize(orderPeriodPositiveInSeconds, hstTotal);
-  ArrayResize(orderPeriodNegativeInSeconds, hstTotal);
+  ArrayResize(orderPeriods, hstTotal);
   
   for(i=0; i < hstTotal; i++) {
     if(OrderSelect(i, SELECT_BY_POS, MODE_HISTORY) == false) {
@@ -64,9 +67,7 @@ void OnStart() {
     orderTakeProfits[i] = OrderTakeProfit();
     orderClosePrices[i] = OrderClosePrice();
     orderLots[i] = OrderLots();
-    orderPeriodInSeconds[i] = calcSeconds(orderOpenTimes[i], orderCloseTimes[i], orderOpenPrices[i]);
-    orderPeriodPositiveInSeconds[i] = calcPositivePeriod(orderOpenTimes[i], orderCloseTimes[i], orderOpenPrices[i]);
-    orderPeriodNegativeInSeconds[i] = calcNegativePeriod(orderOpenTimes[i], orderCloseTimes[i], orderOpenPrices[i]);
+    orderPeriods[i] = calcPeriod(orderOpenTimes[i], orderCloseTimes[i], orderOpenPrices[i]);
   }
 
   writeToCSVFileArray(hstTotal, 
@@ -82,9 +83,21 @@ void OnStart() {
                       orderTakeProfits,
                       orderClosePrices,
                       orderLots,
-                      orderPeriodInSeconds,
-                      orderPeriodPositiveInSeconds,
-                      orderPeriodNegativeInSeconds);
+                      orderPeriods);
+}
+
+double calcR(double orderOpenPrice, double orderClosePrice){
+  return MathAbs(orderOpenPrice - orderClosePrice);
+}
+
+OrderPeriod calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
+  OrderPeriod orderPeriod;
+  orderPeriod.orderPeriodInSeconds = orderCloseTime - orderOpenTime;
+
+  orderPeriod.orderPeriodPositiveInSeconds = calcPositivePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
+  orderPeriod.orderPeriodNegativeInSeconds = calcNegativePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
+
+  return orderPeriod;
 }
 
 int calcSeconds(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
@@ -94,11 +107,14 @@ int calcSeconds(datetime orderOpenTime, datetime orderCloseTime, double orderOpe
 int calcPositivePeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice){
   datetime positionInTime = orderOpenTime;
   int counter = 0;
+
   while(positionInTime < orderCloseTime){
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
     // Calculate just in case if the bar has match
+    
     if(iWhenM1 != -1) {
       double hiWhen = iHigh(NULL, PERIOD_M1, iWhenM1);
+      // amount of seconds in positive area
       // Print("|| TICKET NO: ", ticketNo, "|| DATETIME: ", positionInTime, " || ORDER OPEN PRICE: ", orderOpenPrice, " || PRICE IN HISTORY: ", hiWhen); 
       if(hiWhen > orderOpenPrice) {
         counter++;
@@ -110,7 +126,7 @@ int calcPositivePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
 }
 
 int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
-datetime positionInTime = orderOpenTime;
+  datetime positionInTime = orderOpenTime;
   int counter = 0;
   while(positionInTime < orderCloseTime){
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
@@ -140,9 +156,7 @@ int writeToCSVFileArray(int totalNoOfOrders,
                     double &orderTakeProfits[],
                     double &orderClosePrices[],
                     double &orderLots[],
-                    int &orderPeriodInSeconds[],
-                    int &orderPeriodPositiveInSeconds[],
-                    int &orderPeriodNegativeInSeconds[]) {
+                    OrderPeriod &orderPeriods[]) {
   int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
   if (handle != INVALID_HANDLE){
     Print("write to file");
@@ -177,9 +191,10 @@ int writeToCSVFileArray(int totalNoOfOrders,
                 orderTakeProfits[i],
                 orderClosePrices[i],
                 orderLots[i],
-                orderPeriodInSeconds[i],
-                orderPeriodPositiveInSeconds[i],
-                orderPeriodNegativeInSeconds[i]);
+                orderPeriods[i].orderPeriodInSeconds,
+                orderPeriods[i].orderPeriodPositiveInSeconds,
+                orderPeriods[i].orderPeriodNegativeInSeconds
+                );
     }
   
     FileClose(handle);
