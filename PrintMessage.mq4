@@ -9,9 +9,8 @@
 #property strict
 
 //+------------------------------------------------------------------+
-//| Script program start function                                    |
+//| Calsses and structure definitions                                |
 //+------------------------------------------------------------------+
-
 struct PeriodOfTime {
   public:
     int inSeconds;
@@ -64,6 +63,31 @@ class Order {
     }
 };
 
+string getOrderTypeFrom(int orderType) {
+  switch(orderType) {
+    case(0):
+      return "BUY";
+      break;
+    case(1):
+      return "SELL";
+      break;
+    case(2):
+      return "BUY_LIMIT";
+      break;
+    case(3):
+      return "SELL_LIMIT";
+      break;
+    case(4):
+      return "BUY_STOP";
+      break;
+    case(5):
+      return "SELL_STOP";
+      break;
+    default:
+      return "";
+  }
+}
+
 void OnStart() {
   int numberOfOrders = OrdersHistoryTotal();
 
@@ -97,10 +121,65 @@ void OnStart() {
   writeToCSVFileArray(numberOfOrders, orders);
 }
 
+//+------------------------------------------------------------------+
+//| Write to file algorithm                                          |
+//+------------------------------------------------------------------+
+int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
+  int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
+  if (handle != INVALID_HANDLE){
+    Print("write to file");
+    FileWrite(handle, 
+                "Ticket No.", 
+                "Instrument", 
+                "Open Time", 
+                "Close Time", 
+                "Low", 
+                "High", 
+                "Order Type",
+                "Order Open Price",
+                "Order Stop Loss",
+                "Order Take Profit",
+                "Order Close Price",
+                "Order Lots",
+                "Order Period in Seconds",
+                "Order Positive Period in Seconds",
+                "Order Negative Period in Seconds");
+
+    for(int i=0; i < totalNoOfOrders; i++) {
+      Order order = orders[i];
+      FileWrite(handle, 
+                order.ticketNo, 
+                order.symbol, 
+                order.openTime, 
+                order.closeTime, 
+                order.low, 
+                order.high, 
+                order.type,
+                order.openPrice,
+                order.stopLoss,
+                order.takeProfit,
+                order.closePrice,
+                order.lot,
+                order.periodOfTime.inSeconds,
+                order.periodOfTime.positiveInSeconds,
+                order.periodOfTime.negativeInSeconds
+                );
+    }
+  
+    FileClose(handle);
+  } else {
+    Alert("Failed to open data file. Please check if you have write priviledge!");
+  }
+  return(0);
+}
+
 double calcR(double orderOpenPrice, double orderClosePrice){
   return MathAbs(orderOpenPrice - orderClosePrice);
 }
 
+//+------------------------------------------------------------------+
+//| Calculate time periods                                           |
+//+------------------------------------------------------------------+
 PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
   PeriodOfTime periodOfTime;
   periodOfTime.inSeconds = orderCloseTime - orderOpenTime;
@@ -154,55 +233,10 @@ int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
   return counter;
 }
 
-int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
-  int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
-  if (handle != INVALID_HANDLE){
-    Print("write to file");
-    FileWrite(handle, 
-                "Ticket No.", 
-                "Instrument", 
-                "Open Time", 
-                "Close Time", 
-                "Low", 
-                "High", 
-                "Order Type",
-                "Order Open Price",
-                "Order Stop Loss",
-                "Order Take Profit",
-                "Order Close Price",
-                "Order Lots",
-                "Order Period in Seconds",
-                "Order Positive Period in Seconds",
-                "Order Negative Period in Seconds");
 
-    for(int i=0; i < totalNoOfOrders; i++) {
-      Order order = orders[i];
-      FileWrite(handle, 
-                order.ticketNo, 
-                order.symbol, 
-                order.openTime, 
-                order.closeTime, 
-                order.low, 
-                order.high, 
-                order.type,
-                order.openPrice,
-                order.stopLoss,
-                order.takeProfit,
-                order.closePrice,
-                order.lot,
-                order.periodOfTime.inSeconds,
-                order.periodOfTime.positiveInSeconds,
-                order.periodOfTime.negativeInSeconds
-                );
-    }
-  
-    FileClose(handle);
-  } else {
-    Alert("Failed to open data file. Please check if you have write priviledge!");
-  }
-  return(0);
-}
-
+//+------------------------------------------------------------------+
+//| Calculate lowest and highest value                               |
+//+------------------------------------------------------------------+
 void calcLowAndHigh(datetime start, datetime end)
   {
     string   s           = Symbol();
@@ -243,30 +277,4 @@ double calcHigh(datetime start, datetime end) {
   int      high_shift  = iHighest(s,p,MODE_HIGH,bar_count,t2_shift);
   double   high        = iHigh(s,p,high_shift);
   return high;
-}
-//+------------------------------------------------------------------+
-
-string getOrderTypeFrom(int orderType) {
-  switch(orderType) {
-    case(0):
-      return "BUY";
-      break;
-    case(1):
-      return "SELL";
-      break;
-    case(2):
-      return "BUY_LIMIT";
-      break;
-    case(3):
-      return "SELL_LIMIT";
-      break;
-    case(4):
-      return "BUY_STOP";
-      break;
-    case(5):
-      return "SELL_STOP";
-      break;
-    default:
-      return "";
-  }
 }
