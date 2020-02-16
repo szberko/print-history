@@ -12,73 +12,103 @@
 //| Script program start function                                    |
 //+------------------------------------------------------------------+
 
-struct OrderPeriod {
-   int orderPeriodInSeconds;
-   int orderPeriodPositiveInSeconds;
-   int orderPeriodNegativeInSeconds;
+struct PeriodOfTime {
+  public:
+    int inSeconds;
+    int positiveInSeconds;
+    int negativeInSeconds;
 };
 
-class Trade {
+class Order {
   public:
-    int       ticketNo;
-    string    orderSymbol;
-    datetime  orderOpenTime;
-    datetime  orderCloseTime;
-    double    low;
-    double    high;
-    string    orderType;
-    double    orderOpenPrice;
-    double    orderStopLosse;
-    double    orderTakeProfit;
-    double    orderClosePrice;
-    double    orderLot;
-    OrderPeriod       orderPeriod;
+    int               ticketNo;
+    string            symbol;
+    datetime          openTime;
+    datetime          closeTime;
+    double            low;
+    double            high;
+    string            type;
+    double            openPrice;
+    double            stopLoss;
+    double            takeProfit;
+    double            closePrice;
+    double            lot;
+    PeriodOfTime      periodOfTime;
+
+    void setMetadata(int c_ticketNo,
+                      string c_symbol,
+                      datetime c_openTime,
+                      datetime c_closeTime,
+                      double c_low,
+                      double c_high,
+                      string c_type,
+                      double c_openPrice,
+                      double c_stopLoss,
+                      double c_takeProfit,
+                      double c_closePrice,
+                      double c_lot,
+                      PeriodOfTime& c_periodOfTime) {
+      ticketNo = c_ticketNo;
+      symbol = c_symbol;
+      openTime = c_openTime;
+      closeTime = c_closeTime;
+      low = c_low;
+      high = c_high;
+      type = c_type;
+      openPrice = c_openPrice;
+      stopLoss = c_stopLoss;
+      takeProfit = c_takeProfit;
+      closePrice = c_closePrice;
+      lot = c_lot;
+      periodOfTime = c_periodOfTime;
+    }
 };
 
 void OnStart() {
-  int i,hstTotal = OrdersHistoryTotal();
+  int numberOfOrders = OrdersHistoryTotal();
 
-  Trade trades[];
+  Order orders[];
 
-  ArrayResize(trades, hstTotal);
+  ArrayResize(orders, numberOfOrders);
   
-  for(i=0; i < hstTotal; i++) {
+  for(int i=0; i < numberOfOrders; i++) {
     if(OrderSelect(i, SELECT_BY_POS, MODE_HISTORY) == false) {
       Print("Access to history failed with error (",GetLastError(),")");
       break;
     }
     
-    
-    trades[i].ticketNo = OrderTicket();
-    trades[i].orderSymbol = OrderSymbol();
-    trades[i].orderOpenTime = OrderOpenTime();
-    trades[i].orderCloseTime = OrderCloseTime();
-    trades[i].low = calcLow(OrderOpenTime(), OrderCloseTime());
-    trades[i].high = calcHigh(OrderOpenTime(), OrderCloseTime());
-    trades[i].orderType = getOrderTypeFrom(OrderType());
-    trades[i].orderOpenPrice = OrderOpenPrice();
-    trades[i].orderStopLosse = OrderStopLoss();
-    trades[i].orderTakeProfit = OrderTakeProfit();
-    trades[i].orderClosePrice = OrderClosePrice();
-    trades[i].orderLot = OrderLots();
-    trades[i].orderPeriod = calcPeriod(trades[i].orderOpenTime, trades[i].orderCloseTime, trades[i].orderOpenPrice);
+    orders[i].setMetadata(
+      OrderTicket(),
+      OrderSymbol(),
+      OrderOpenTime(),
+      OrderCloseTime(),
+      calcLow(OrderOpenTime(), OrderCloseTime()),
+      calcHigh(OrderOpenTime(), OrderCloseTime()),
+      getOrderTypeFrom(OrderType()),
+      OrderOpenPrice(),
+      OrderStopLoss(),
+      OrderTakeProfit(),
+      OrderClosePrice(),
+      OrderLots(),
+      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice())
+    );
   }
 
-  writeToCSVFileArray(hstTotal, trades);
+  writeToCSVFileArray(numberOfOrders, orders);
 }
 
 double calcR(double orderOpenPrice, double orderClosePrice){
   return MathAbs(orderOpenPrice - orderClosePrice);
 }
 
-OrderPeriod calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
-  OrderPeriod orderPeriod;
-  orderPeriod.orderPeriodInSeconds = orderCloseTime - orderOpenTime;
+PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
+  PeriodOfTime periodOfTime;
+  periodOfTime.inSeconds = orderCloseTime - orderOpenTime;
 
-  orderPeriod.orderPeriodPositiveInSeconds = calcPositivePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
-  orderPeriod.orderPeriodNegativeInSeconds = calcNegativePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
+  periodOfTime.positiveInSeconds = calcPositivePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
+  periodOfTime.negativeInSeconds = calcNegativePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
 
-  return orderPeriod;
+  return periodOfTime;
 }
 
 int calcSeconds(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
@@ -124,7 +154,7 @@ int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
   return counter;
 }
 
-int writeToCSVFileArray(int totalNoOfOrders, Trade &trades[]) {
+int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
   int handle=FileOpen("dairy_tick.csv", FILE_READ | FILE_WRITE | FILE_CSV, ',');
   if (handle != INVALID_HANDLE){
     Print("write to file");
@@ -146,22 +176,23 @@ int writeToCSVFileArray(int totalNoOfOrders, Trade &trades[]) {
                 "Order Negative Period in Seconds");
 
     for(int i=0; i < totalNoOfOrders; i++) {
+      Order order = orders[i];
       FileWrite(handle, 
-                trades[i].ticketNo, 
-                trades[i].orderSymbol, 
-                trades[i].orderOpenTime, 
-                trades[i].orderCloseTime, 
-                trades[i].low, 
-                trades[i].high, 
-                trades[i].orderType,
-                trades[i].orderOpenPrice,
-                trades[i].orderStopLosse,
-                trades[i].orderTakeProfit,
-                trades[i].orderClosePrice,
-                trades[i].orderLot,
-                trades[i].orderPeriod.orderPeriodInSeconds,
-                trades[i].orderPeriod.orderPeriodPositiveInSeconds,
-                trades[i].orderPeriod.orderPeriodNegativeInSeconds
+                order.ticketNo, 
+                order.symbol, 
+                order.openTime, 
+                order.closeTime, 
+                order.low, 
+                order.high, 
+                order.type,
+                order.openPrice,
+                order.stopLoss,
+                order.takeProfit,
+                order.closePrice,
+                order.lot,
+                order.periodOfTime.inSeconds,
+                order.periodOfTime.positiveInSeconds,
+                order.periodOfTime.negativeInSeconds
                 );
     }
   
