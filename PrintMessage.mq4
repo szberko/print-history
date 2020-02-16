@@ -100,7 +100,6 @@ void OnStart() {
       Print("Access to history failed with error (",GetLastError(),")");
       break;
     }
-    
     orders[i].setMetadata(
       OrderTicket(),
       OrderSymbol(),
@@ -184,8 +183,8 @@ PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double 
   PeriodOfTime periodOfTime;
   periodOfTime.inSeconds = orderCloseTime - orderOpenTime;
 
-  periodOfTime.positiveInSeconds = calcPositivePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
-  periodOfTime.negativeInSeconds = calcNegativePeriod(orderOpenTime, orderCloseTime, orderOpenPrice);
+  periodOfTime.positiveInSeconds = calcSecondsAboveOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice);
+  periodOfTime.negativeInSeconds = calcSecondsBelowOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice);
 
   return periodOfTime;
 }
@@ -194,19 +193,23 @@ int calcSeconds(datetime orderOpenTime, datetime orderCloseTime, double orderOpe
   return orderCloseTime - orderOpenTime;
 }
 
-int calcPositivePeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice){
+int calcSecondsAboveOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
   datetime positionInTime = orderOpenTime;
   int counter = 0;
 
   while(positionInTime < orderCloseTime){
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
     // Calculate just in case if the bar has match
-    
     if(iWhenM1 != -1) {
-      double hiWhen = iHigh(NULL, PERIOD_M1, iWhenM1);
-      // amount of seconds in positive area
-      // Print("|| TICKET NO: ", ticketNo, "|| DATETIME: ", positionInTime, " || ORDER OPEN PRICE: ", orderOpenPrice, " || PRICE IN HISTORY: ", hiWhen); 
-      if(hiWhen > orderOpenPrice) {
+      bool greenCandle = isGreenCandle(iOpen(NULL, PERIOD_M1, iWhenM1), iClose(NULL, PERIOD_M1, iWhenM1));
+      double price = 0;
+      if(greenCandle) {
+        price = iHigh(NULL, PERIOD_M1, iWhenM1);
+      } else {
+        price = iLow(NULL, PERIOD_M1, iWhenM1);
+      }
+      // amount of seconds above open price area
+      if(price > orderOpenPrice) {
         counter++;
       }
     }
@@ -215,16 +218,22 @@ int calcPositivePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
   return counter;
 }
 
-int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
+int calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
   datetime positionInTime = orderOpenTime;
   int counter = 0;
   while(positionInTime < orderCloseTime){
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
     // Calculate just in case if the bar has match
     if(iWhenM1 != -1) {
-      double hiWhen = iHigh(NULL, PERIOD_M1, iWhenM1);
-      // Print("|| TICKET NO: ", ticketNo, "|| DATETIME: ", positionInTime, " || ORDER OPEN PRICE: ", orderOpenPrice, " || PRICE IN HISTORY: ", hiWhen); 
-      if(hiWhen < orderOpenPrice) {
+      bool greenCandle = isGreenCandle(iOpen(NULL, PERIOD_M1, iWhenM1), iClose(NULL, PERIOD_M1, iWhenM1));
+      double price = 0;
+      if(greenCandle) {
+        price = iHigh(NULL, PERIOD_M1, iWhenM1);
+      } else {
+        price = iLow(NULL, PERIOD_M1, iWhenM1);
+      }
+      // amount of seconds below open price area
+      if(price < orderOpenPrice) {
         counter++;
       }
     }
@@ -233,6 +242,9 @@ int calcNegativePeriod(datetime orderOpenTime, datetime orderCloseTime, double o
   return counter;
 }
 
+bool isGreenCandle(double openPrice, double closePrice) {
+  return openPrice < closePrice;
+}
 
 //+------------------------------------------------------------------+
 //| Calculate lowest and highest value                               |
