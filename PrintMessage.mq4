@@ -271,20 +271,15 @@ TimeAndRStatistics calcSecondsAboveOpenPrice(datetime orderOpenTime, datetime or
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
     // Calculate just in case if the bar has match
     if(iWhenM1 != -1) {
-      bool greenCandle = isGreenCandle(iOpen(NULL, PERIOD_M1, iWhenM1), iClose(NULL, PERIOD_M1, iWhenM1));
-      double price = 0;
-      if(greenCandle) {
-        price = iHigh(NULL, PERIOD_M1, iWhenM1);
-      } else {
-        price = iLow(NULL, PERIOD_M1, iWhenM1);
-      }
+      double candleClosePrice = iClose(NULL, PERIOD_M1, iWhenM1);
+      double candleHighestPrice = iHigh(NULL, PERIOD_M1, iWhenM1);
       // amount of seconds above open price area
-      if(price > orderOpenPrice) {
+      if(candleClosePrice > orderOpenPrice) {
         seconds++;
       }
 
-      if(price > highestPrice){
-        highestPrice = price;
+      if(candleHighestPrice > highestPrice){
+        highestPrice = candleHighestPrice;
       }
     }
     positionInTime++;
@@ -311,20 +306,15 @@ TimeAndRStatistics calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime or
     int  iWhenM1 = iBarShift(NULL, PERIOD_M1, positionInTime, true);
     // Calculate just in case if the bar has match
     if(iWhenM1 != -1) {
-      bool greenCandle = isGreenCandle(iOpen(NULL, PERIOD_M1, iWhenM1), iClose(NULL, PERIOD_M1, iWhenM1));
-      double price = 0;
-      if(greenCandle) {
-        price = iHigh(NULL, PERIOD_M1, iWhenM1);
-      } else {
-        price = iLow(NULL, PERIOD_M1, iWhenM1);
-      }
+      double candleClosePrice = iClose(NULL, PERIOD_M1, iWhenM1);
+      double candleLowestPrice = iLow(NULL, PERIOD_M1, iWhenM1);
       // amount of seconds below open price area
-      if(price <= orderOpenPrice) {
+      if(candleClosePrice <= orderOpenPrice) {
         seconds++;
       }
       
-      if(price < lowestPrice) {
-        lowestPrice = price;
+      if(candleLowestPrice < lowestPrice) {
+        lowestPrice = candleLowestPrice;
       }
     }
     positionInTime++;
@@ -339,10 +329,6 @@ TimeAndRStatistics calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime or
     timeAndRStatistics.r = INVALID_VALUE;
   }
   return timeAndRStatistics;
-}
-
-bool isGreenCandle(double openPrice, double closePrice) {
-  return openPrice < closePrice;
 }
 
 //+------------------------------------------------------------------+
