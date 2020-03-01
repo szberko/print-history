@@ -233,7 +233,7 @@ int calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime orderCloseTime, d
         price = iLow(NULL, PERIOD_M1, iWhenM1);
       }
       // amount of seconds below open price area
-      if(price < orderOpenPrice) {
+      if(price <= orderOpenPrice) {
         counter++;
       }
     }
