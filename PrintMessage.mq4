@@ -11,11 +11,15 @@
 //+------------------------------------------------------------------+
 //| Calsses and structure definitions                                |
 //+------------------------------------------------------------------+
+const int INVALID_VALUE = -1;
+
 struct PeriodOfTime {
   public:
-    int inSeconds;
+    int allInSeconds;
     int positiveInSeconds;
     int negativeInSeconds;
+    double positiveInPercent;
+    double negativeInPercent;
 };
 
 class Order {
@@ -141,7 +145,9 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 "Order Close Price",
                 "Order Lots",
                 "Order Period in Seconds",
+                "Order Positive Period in Percent",
                 "Order Positive Period in Seconds",
+                "Order Negative Period in Percent",
                 "Order Negative Period in Seconds");
 
     for(int i=0; i < totalNoOfOrders; i++) {
@@ -159,8 +165,10 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 order.takeProfit,
                 order.closePrice,
                 order.lot,
-                order.periodOfTime.inSeconds,
+                order.periodOfTime.allInSeconds,
+                order.periodOfTime.positiveInPercent,
                 order.periodOfTime.positiveInSeconds,
+                order.periodOfTime.negativeInPercent,
                 order.periodOfTime.negativeInSeconds
                 );
     }
@@ -181,10 +189,18 @@ double calcR(double orderOpenPrice, double orderClosePrice){
 //+------------------------------------------------------------------+
 PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice) {
   PeriodOfTime periodOfTime;
-  periodOfTime.inSeconds = orderCloseTime - orderOpenTime;
+  periodOfTime.allInSeconds = orderCloseTime - orderOpenTime;
 
   periodOfTime.positiveInSeconds = calcSecondsAboveOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice);
   periodOfTime.negativeInSeconds = calcSecondsBelowOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice);
+
+  if (periodOfTime.allInSeconds > 0) {
+    periodOfTime.positiveInPercent = ((double) periodOfTime.positiveInSeconds / (double) periodOfTime.allInSeconds) * 100;
+    periodOfTime.negativeInPercent = ((double) periodOfTime.negativeInSeconds / (double) periodOfTime.allInSeconds) * 100;
+  } else {
+    periodOfTime.positiveInPercent = INVALID_VALUE;
+    periodOfTime.negativeInPercent = INVALID_VALUE;
+  }
 
   return periodOfTime;
 }
