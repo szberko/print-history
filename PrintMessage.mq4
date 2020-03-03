@@ -12,6 +12,7 @@
 //| Calsses and structure definitions                                |
 //+------------------------------------------------------------------+
 const int INVALID_VALUE = -1;
+const int INVALID_R_VALUE = -1000;
 
 struct TimeAndRStatistics {
   public:
@@ -47,7 +48,8 @@ class Order {
     double            takeProfit;
     double            closePrice;
     double            lot;
-    double            r;
+    double            rValue;
+    double            reachedR;
     PeriodOfTime      periodOfTime;
 
     void setMetadata(int c_ticketNo,
@@ -62,7 +64,8 @@ class Order {
                       double c_takeProfit,
                       double c_closePrice,
                       double c_lot,
-                      double c_r,
+                      double c_rValue,
+                      double c_reachedR,
                       PeriodOfTime& c_periodOfTime) {
       ticketNo = c_ticketNo;
       symbol = c_symbol;
@@ -76,7 +79,8 @@ class Order {
       takeProfit = c_takeProfit;
       closePrice = c_closePrice;
       lot = c_lot;
-      r = c_r;
+      rValue = c_rValue;
+      reachedR = c_reachedR;
       periodOfTime = c_periodOfTime;
     }
 };
@@ -118,7 +122,7 @@ void OnStart() {
       Print("Access to history failed with error (",GetLastError(),")");
       break;
     }
-    double r = calcR(OrderOpenPrice(), OrderStopLoss());
+    double rValue = calcRValue(OrderOpenPrice(), OrderStopLoss());
 
     orders[i].setMetadata(
       OrderTicket(),
@@ -133,8 +137,9 @@ void OnStart() {
       OrderTakeProfit(),
       OrderClosePrice(),
       OrderLots(),
-      r,
-      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), r)
+      rValue,
+      calcReachedR(OrderOpenPrice(), OrderClosePrice(), rValue, OrderType()),
+      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue)
     );
   }
 
@@ -161,7 +166,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 "Order Take Profit",
                 "Order Close Price",
                 "Order Lots",
-                "R",
+                "Value of R",
+                "Reached R",
                 "Order Period in Seconds",
                 "Order Max Positive Price",
                 "Order Max Positive R",
@@ -187,7 +193,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 order.takeProfit,
                 order.closePrice,
                 order.lot,
-                order.r,
+                order.rValue,
+                order.reachedR,
                 order.periodOfTime.allInSeconds,
                 order.periodOfTime.maxPositivePrice,
                 order.periodOfTime.maxPositiveR,
@@ -207,24 +214,44 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
   return(0);
 }
 
-double calcR(double orderOpenPrice, double stopLoss){
+double calcRValue(double orderOpenPrice, double stopLoss){
   return MathAbs(orderOpenPrice - stopLoss);
+}
+
+double calcReachedR(double orderOpenPrice, double orderClosePrice, double rValue, int orderType) {
+  if(isBuyOrder(orderType)){
+    return (orderClosePrice - orderOpenPrice) / rValue;
+  }
+
+  if(isSellOrder(orderType)){
+    return (orderOpenPrice - orderClosePrice) / rValue;
+  }
+
+  return INVALID_R_VALUE;
+}
+
+bool isBuyOrder(int orderType) {
+  return orderType == 0 || orderType == 2 || orderType == 4;
+}
+
+bool isSellOrder(int orderType) {
+  return orderType == 1 || orderType == 3 || orderType == 5;
 }
 
 //+------------------------------------------------------------------+
 //| Calculate time periods                                           |
 //+------------------------------------------------------------------+
-PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, int orderType, double orderR) {
+PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, int orderType, double orderRValue) {
   PeriodOfTime periodOfTime;
   periodOfTime.allInSeconds = orderCloseTime - orderOpenTime;
 
-  TimeAndRStatistics statisticsAboveOpenPrice = calcSecondsAboveOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice, orderR);
-  TimeAndRStatistics statisticsBelowOpenPrice = calcSecondsBelowOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice, orderR);
+  TimeAndRStatistics statisticsAboveOpenPrice = calcSecondsAboveOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice, orderRValue);
+  TimeAndRStatistics statisticsBelowOpenPrice = calcSecondsBelowOpenPrice(orderOpenTime, orderCloseTime, orderOpenPrice, orderRValue);
 
   
 
   // BUY
-  if(orderType == 0 || orderType == 2 || orderType == 4){
+  if(isBuyOrder(orderType)){
     periodOfTime.maxPositivePrice = statisticsAboveOpenPrice.price;
     periodOfTime.maxNegativePrice = statisticsBelowOpenPrice.price;
 
@@ -236,7 +263,7 @@ PeriodOfTime calcPeriod(datetime orderOpenTime, datetime orderCloseTime, double 
   }
 
   // SELL
-  if(orderType == 1 || orderType == 3 || orderType == 5){
+  if(isSellOrder(orderType)){
     periodOfTime.maxPositivePrice = statisticsBelowOpenPrice.price;
     periodOfTime.maxNegativePrice = statisticsAboveOpenPrice.price;
 
@@ -262,7 +289,7 @@ int calcSeconds(datetime orderOpenTime, datetime orderCloseTime, double orderOpe
   return orderCloseTime - orderOpenTime;
 }
 
-TimeAndRStatistics calcSecondsAboveOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, double orderR) {
+TimeAndRStatistics calcSecondsAboveOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, double orderRValue) {
   datetime positionInTime = orderOpenTime;
   int seconds = 0;
   double highestPrice = orderOpenPrice;
@@ -288,15 +315,15 @@ TimeAndRStatistics calcSecondsAboveOpenPrice(datetime orderOpenTime, datetime or
   TimeAndRStatistics timeAndRStatistics;
   timeAndRStatistics.seconds = seconds;
   timeAndRStatistics.price = highestPrice;
-  if (orderR > 0) {
-    timeAndRStatistics.r = (highestPrice - orderOpenPrice) / orderR;
+  if (orderRValue > 0) {
+    timeAndRStatistics.r = (highestPrice - orderOpenPrice) / orderRValue;
   } else {
     timeAndRStatistics.r = INVALID_VALUE;
   }
   return timeAndRStatistics;
 }
 
-TimeAndRStatistics calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, double orderR) {
+TimeAndRStatistics calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime orderCloseTime, double orderOpenPrice, double orderRValue) {
   datetime positionInTime = orderOpenTime;
 
   int seconds = 0;
@@ -323,8 +350,8 @@ TimeAndRStatistics calcSecondsBelowOpenPrice(datetime orderOpenTime, datetime or
   TimeAndRStatistics timeAndRStatistics;
   timeAndRStatistics.seconds = seconds;
   timeAndRStatistics.price = lowestPrice;
-  if (orderR > 0) {
-    timeAndRStatistics.r = (orderOpenPrice - lowestPrice) / orderR;
+  if (orderRValue > 0) {
+    timeAndRStatistics.r = (orderOpenPrice - lowestPrice) / orderRValue;
   } else {
     timeAndRStatistics.r = INVALID_VALUE;
   }
