@@ -52,6 +52,7 @@ class Order {
     double            reachedR;
     PeriodOfTime      periodOfTime;
     double            netProfit;
+    double            balance;
 
     void setMetadata(int c_ticketNo,
                       string c_symbol,
@@ -68,7 +69,8 @@ class Order {
                       double c_rValue,
                       double c_reachedR,
                       PeriodOfTime& c_periodOfTime,
-                      double c_netProfit) {
+                      double c_netProfit,
+                      double c_balance) {
       ticketNo = c_ticketNo;
       symbol = c_symbol;
       openTime = c_openTime;
@@ -85,6 +87,7 @@ class Order {
       reachedR = c_reachedR;
       periodOfTime = c_periodOfTime;
       netProfit = c_netProfit;
+      balance = c_balance;
     }
 };
 
@@ -119,13 +122,14 @@ void OnStart() {
   Order orders[];
 
   ArrayResize(orders, numberOfOrders);
-  
+  double currentBalance = 0;
   for(int i=0; i < numberOfOrders; i++) {
     if(OrderSelect(i, SELECT_BY_POS, MODE_HISTORY) == false) {
-      Print("Access to history failed with error (",GetLastError(),")");
+      Print("Access to history failed with error (", GetLastError(), ")");
       break;
     }
     double rValue = calcRValue(OrderOpenPrice(), OrderStopLoss());
+    currentBalance = currentBalance + OrderSwap() + OrderCommission() + OrderProfit();
 
     orders[i].setMetadata(
       OrderTicket(),
@@ -143,7 +147,8 @@ void OnStart() {
       rValue,
       calcReachedR(OrderOpenPrice(), OrderClosePrice(), rValue, OrderType()),
       calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue),
-      OrderProfit()
+      OrderProfit(),
+      currentBalance
     );
   }
 
@@ -181,7 +186,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 "Order Max Negative R",
                 "Order Negative Period in Percent",
                 "Order Negative Period in Seconds",
-                "Net Profit");
+                "Net Profit",
+                "Balance");
 
     for(int i=0; i < totalNoOfOrders; i++) {
       Order order = orders[i];
@@ -209,7 +215,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 order.periodOfTime.maxNegativeR,
                 order.periodOfTime.negativeInPercent,
                 order.periodOfTime.negativeInSeconds,
-                order.netProfit
+                order.netProfit,
+                order.balance
                 );
     }
   
