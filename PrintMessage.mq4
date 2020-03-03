@@ -51,6 +51,7 @@ class Order {
     double            rValue;
     double            reachedR;
     PeriodOfTime      periodOfTime;
+    double            netProfit;
 
     void setMetadata(int c_ticketNo,
                       string c_symbol,
@@ -66,7 +67,8 @@ class Order {
                       double c_lot,
                       double c_rValue,
                       double c_reachedR,
-                      PeriodOfTime& c_periodOfTime) {
+                      PeriodOfTime& c_periodOfTime,
+                      double c_netProfit) {
       ticketNo = c_ticketNo;
       symbol = c_symbol;
       openTime = c_openTime;
@@ -82,6 +84,7 @@ class Order {
       rValue = c_rValue;
       reachedR = c_reachedR;
       periodOfTime = c_periodOfTime;
+      netProfit = c_netProfit;
     }
 };
 
@@ -139,7 +142,8 @@ void OnStart() {
       OrderLots(),
       rValue,
       calcReachedR(OrderOpenPrice(), OrderClosePrice(), rValue, OrderType()),
-      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue)
+      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue),
+      OrderProfit()
     );
   }
 
@@ -176,7 +180,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 "Order Max Price",
                 "Order Max Negative R",
                 "Order Negative Period in Percent",
-                "Order Negative Period in Seconds");
+                "Order Negative Period in Seconds",
+                "Net Profit");
 
     for(int i=0; i < totalNoOfOrders; i++) {
       Order order = orders[i];
@@ -203,7 +208,8 @@ int writeToCSVFileArray(int totalNoOfOrders, Order &orders[]) {
                 order.periodOfTime.maxNegativePrice,
                 order.periodOfTime.maxNegativeR,
                 order.periodOfTime.negativeInPercent,
-                order.periodOfTime.negativeInSeconds
+                order.periodOfTime.negativeInSeconds,
+                order.netProfit
                 );
     }
   
