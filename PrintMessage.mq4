@@ -232,11 +232,11 @@ double calcRValue(double orderOpenPrice, double stopLoss){
 }
 
 double calcReachedR(double orderOpenPrice, double orderClosePrice, double rValue, int orderType) {
-  if(isBuyOrder(orderType)){
+  if(isBuyOrder(orderType) && rValue > 0) {
     return (orderClosePrice - orderOpenPrice) / rValue;
   }
 
-  if(isSellOrder(orderType)){
+  if(isSellOrder(orderType) && rValue > 0){
     return (orderOpenPrice - orderClosePrice) / rValue;
   }
 
