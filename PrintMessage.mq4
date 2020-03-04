@@ -117,42 +117,57 @@ string getOrderTypeFrom(int orderType) {
 }
 
 void OnStart() {
-  int numberOfOrders = OrdersHistoryTotal();
+  int numberOfCompletedOrders = OrdersHistoryTotal();
+  int numberOfActiveOrders = OrdersTotal();
+  int numberOfAllOrders = numberOfCompletedOrders + numberOfActiveOrders;
 
   Order orders[];
 
-  ArrayResize(orders, numberOfOrders);
+  ArrayResize(orders, numberOfAllOrders);
   double currentBalance = 0;
-  for(int i=0; i < numberOfOrders; i++) {
+  for(int i=0; i < numberOfCompletedOrders; i++) {
     if(OrderSelect(i, SELECT_BY_POS, MODE_HISTORY) == false) {
       Print("Access to history failed with error (", GetLastError(), ")");
       break;
     }
-    double rValue = calcRValue(OrderOpenPrice(), OrderStopLoss());
-    currentBalance = currentBalance + OrderSwap() + OrderCommission() + OrderProfit();
 
-    orders[i].setMetadata(
-      OrderTicket(),
-      OrderSymbol(),
-      OrderOpenTime(),
-      OrderCloseTime(),
-      calcLow(OrderOpenTime(), OrderCloseTime()),
-      calcHigh(OrderOpenTime(), OrderCloseTime()),
-      getOrderTypeFrom(OrderType()),
-      OrderOpenPrice(),
-      OrderStopLoss(),
-      OrderTakeProfit(),
-      OrderClosePrice(),
-      OrderLots(),
-      rValue,
-      calcReachedR(OrderOpenPrice(), OrderClosePrice(), rValue, OrderType()),
-      calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue),
-      OrderProfit(),
-      currentBalance
-    );
+    writeOrderMetadata(currentBalance, orders[i]);
   }
 
-  writeToCSVFileArray(numberOfOrders, orders);
+  for(int i=0; i < numberOfActiveOrders; i++) {
+    if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES) == false) {
+      Print("Access to actual orders failed with error (", GetLastError(), ")");
+      break;
+    }
+    writeOrderMetadata(currentBalance, orders[i + numberOfCompletedOrders]);
+  }
+
+  writeToCSVFileArray(numberOfAllOrders, orders);
+}
+
+void writeOrderMetadata(double &currentBalance, Order &order) {
+  double rValue = calcRValue(OrderOpenPrice(), OrderStopLoss());
+  currentBalance = currentBalance + OrderSwap() + OrderCommission() + OrderProfit();
+
+  order.setMetadata(
+    OrderTicket(),
+    OrderSymbol(),
+    OrderOpenTime(),
+    OrderCloseTime(),
+    calcLow(OrderOpenTime(), OrderCloseTime()),
+    calcHigh(OrderOpenTime(), OrderCloseTime()),
+    getOrderTypeFrom(OrderType()),
+    OrderOpenPrice(),
+    OrderStopLoss(),
+    OrderTakeProfit(),
+    OrderClosePrice(),
+    OrderLots(),
+    rValue,
+    calcReachedR(OrderOpenPrice(), OrderClosePrice(), rValue, OrderType()),
+    calcPeriod(OrderOpenTime(), OrderCloseTime(), OrderOpenPrice(), OrderType(), rValue),
+    OrderProfit(),
+    currentBalance
+  );
 }
 
 //+------------------------------------------------------------------+
